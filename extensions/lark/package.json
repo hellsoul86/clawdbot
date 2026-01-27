@@ -1,0 +1,41 @@
+{
+  "name": "@clawdbot/lark",
+  "version": "2026.1.23",
+  "type": "module",
+  "description": "Clawdbot Lark/Feishu channel plugin",
+  "clawdbot": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "lark",
+      "label": "Lark",
+      "selectionLabel": "Lark (Enterprise)",
+      "docsPath": "/channels/lark",
+      "docsLabel": "lark",
+      "blurb": "Enterprise Lark/Feishu bot integration.",
+      "aliases": [
+        "feishu"
+      ],
+      "order": 65
+    },
+    "install": {
+      "npmSpec": "@clawdbot/lark",
+      "localPath": "extensions/lark",
+      "defaultChoice": "npm"
+    }
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.56.1",
+    "jszip": "3.10.1",
+    "mysql2": "^3.9.7",
+    "tesseract.js": "^5.0.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "clawdbot": "workspace:*"
+  },
+  "peerDependencies": {
+    "clawdbot": "*"
+  }
+}
