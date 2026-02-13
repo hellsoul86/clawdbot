@@ -22,11 +22,15 @@ jobs:
       WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
       R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
       MOLTBOT_GATEWAY_TOKEN: ${{ secrets.MOLTBOT_GATEWAY_TOKEN }}
+
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
       CLOUDFLARE_AI_GATEWAY_API_KEY: ${{ secrets.CLOUDFLARE_AI_GATEWAY_API_KEY }}
       CF_AI_GATEWAY_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
       CF_AI_GATEWAY_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_GATEWAY_ID }}
+
       CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
       CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -45,8 +49,8 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "Missing secret: CLOUDFLARE_ACCOUNT_ID"; exit 1; }
           test -n "${MOLTBOT_GATEWAY_TOKEN:-}" || { echo "Missing secret: MOLTBOT_GATEWAY_TOKEN"; exit 1; }
 
-          if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${CLOUDFLARE_AI_GATEWAY_API_KEY:-}" ]; then
-            echo "Set at least one model secret: ANTHROPIC_API_KEY or OPENAI_API_KEY or CLOUDFLARE_AI_GATEWAY_API_KEY"
+          if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${CLOUDFLARE_AI_GATEWAY_API_KEY:-}" ] && [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
+            echo "Set at least one model credential: ANTHROPIC_API_KEY or OPENAI_API_KEY or CLOUDFLARE_AI_GATEWAY_API_KEY or COPILOT_GITHUB_TOKEN"
             exit 1
           fi
 
@@ -55,6 +59,18 @@ jobs:
         with:
           repository: cloudflare/moltworker
           path: .deploy/moltworker
+
+      - name: Patch scaffold for Copilot token support
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .deploy/moltworker
+
+          perl -0777 -i -pe 's/OPENAI_API_KEY\?: string;\n/OPENAI_API_KEY?: string;\n  COPILOT_GITHUB_TOKEN?: string;\n/' src/types.ts
+
+          perl -0777 -i -pe 's/if \(env\.OPENAI_API_KEY\) envVars\.OPENAI_API_KEY = env\.OPENAI_API_KEY;\n/if (env.OPENAI_API_KEY) envVars.OPENAI_API_KEY = env.OPENAI_API_KEY;\n  if (env.COPILOT_GITHUB_TOKEN) envVars.COPILOT_GITHUB_TOKEN = env.COPILOT_GITHUB_TOKEN;\n/' src/gateway/env.ts
+
+          perl -0777 -i -pe 's@// Telegram configuration@// Copilot token-based default model (when no direct provider key is configured)\nif (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && !process.env.CLOUDFLARE_AI_GATEWAY_API_KEY && (process.env.COPILOT_GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GITHUB_TOKEN)) {\n    config.agents = config.agents || {};\n    config.agents.defaults = config.agents.defaults || {};\n    const existingModel = config.agents.defaults.model;\n    const existingPrimary = typeof existingModel === \"string\" ? existingModel : existingModel?.primary;\n    if (!existingPrimary || existingPrimary.startsWith(\"anthropic/\")) {\n        config.agents.defaults.model = { ...(typeof existingModel === \"object\" ? existingModel : {}), primary: \"github-copilot/gpt-4o\" };\n        console.log(\"Configured default model: github-copilot/gpt-4o\");\n    }\n}\n\n// Telegram configuration@' start-openclaw.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -95,9 +111,12 @@ jobs:
           put_secret MOLTBOT_GATEWAY_TOKEN "${MOLTBOT_GATEWAY_TOKEN:-}"
           put_secret ANTHROPIC_API_KEY "${ANTHROPIC_API_KEY:-}"
           put_secret OPENAI_API_KEY "${OPENAI_API_KEY:-}"
+          put_secret COPILOT_GITHUB_TOKEN "${COPILOT_GITHUB_TOKEN:-}"
+
           put_secret CLOUDFLARE_AI_GATEWAY_API_KEY "${CLOUDFLARE_AI_GATEWAY_API_KEY:-}"
           put_secret CF_AI_GATEWAY_ACCOUNT_ID "${CF_AI_GATEWAY_ACCOUNT_ID:-}"
           put_secret CF_AI_GATEWAY_GATEWAY_ID "${CF_AI_GATEWAY_GATEWAY_ID:-}"
+
           put_secret CF_ACCESS_TEAM_DOMAIN "${CF_ACCESS_TEAM_DOMAIN:-}"
           put_secret CF_ACCESS_AUD "${CF_ACCESS_AUD:-}"
           put_secret R2_ACCESS_KEY_ID "${R2_ACCESS_KEY_ID:-}"
