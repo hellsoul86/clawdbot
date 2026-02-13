@@ -1,11 +1,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-
 import type { BrowserRouteContext } from "../server-context.js";
+import type { BrowserRouteRegistrar } from "./types.js";
+import { resolvePreferredOpenClawTmpDir } from "../../infra/tmp-openclaw-dir.js";
 import { handleRouteError, readBody, requirePwAi, resolveProfileContext } from "./agent.shared.js";
 import { toBoolean, toStringOrEmpty } from "./utils.js";
-import type { BrowserRouteRegistrar } from "./types.js";
+
+const DEFAULT_TRACE_DIR = resolvePreferredOpenClawTmpDir();
 
 export function registerBrowserAgentDebugRoutes(
   app: BrowserRouteRegistrar,
@@ -13,14 +15,18 @@ export function registerBrowserAgentDebugRoutes(
 ) {
   app.get("/console", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) return;
+    if (!profileCtx) {
+      return;
+    }
     const targetId = typeof req.query.targetId === "string" ? req.query.targetId.trim() : "";
     const level = typeof req.query.level === "string" ? req.query.level : "";
 
     try {
       const tab = await profileCtx.ensureTabAvailable(targetId || undefined);
       const pw = await requirePwAi(res, "console messages");
-      if (!pw) return;
+      if (!pw) {
+        return;
+      }
       const messages = await pw.getConsoleMessagesViaPlaywright({
         cdpUrl: profileCtx.profile.cdpUrl,
         targetId: tab.targetId,
@@ -34,14 +40,18 @@ export function registerBrowserAgentDebugRoutes(
 
   app.get("/errors", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) return;
+    if (!profileCtx) {
+      return;
+    }
     const targetId = typeof req.query.targetId === "string" ? req.query.targetId.trim() : "";
     const clear = toBoolean(req.query.clear) ?? false;
 
     try {
       const tab = await profileCtx.ensureTabAvailable(targetId || undefined);
       const pw = await requirePwAi(res, "page errors");
-      if (!pw) return;
+      if (!pw) {
+        return;
+      }
       const result = await pw.getPageErrorsViaPlaywright({
         cdpUrl: profileCtx.profile.cdpUrl,
         targetId: tab.targetId,
@@ -55,7 +65,9 @@ export function registerBrowserAgentDebugRoutes(
 
   app.get("/requests", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) return;
+    if (!profileCtx) {
+      return;
+    }
     const targetId = typeof req.query.targetId === "string" ? req.query.targetId.trim() : "";
     const filter = typeof req.query.filter === "string" ? req.query.filter : "";
     const clear = toBoolean(req.query.clear) ?? false;
@@ -63,7 +75,9 @@ export function registerBrowserAgentDebugRoutes(
     try {
       const tab = await profileCtx.ensureTabAvailable(targetId || undefined);
       const pw = await requirePwAi(res, "network requests");
-      if (!pw) return;
+      if (!pw) {
+        return;
+      }
       const result = await pw.getNetworkRequestsViaPlaywright({
         cdpUrl: profileCtx.profile.cdpUrl,
         targetId: tab.targetId,
@@ -78,7 +92,9 @@ export function registerBrowserAgentDebugRoutes(
 
   app.post("/trace/start", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) return;
+    if (!profileCtx) {
+      return;
+    }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
     const screenshots = toBoolean(body.screenshots) ?? undefined;
@@ -87,7 +103,9 @@ export function registerBrowserAgentDebugRoutes(
     try {
       const tab = await profileCtx.ensureTabAvailable(targetId);
       const pw = await requirePwAi(res, "trace start");
-      if (!pw) return;
+      if (!pw) {
+        return;
+      }
       await pw.traceStartViaPlaywright({
         cdpUrl: profileCtx.profile.cdpUrl,
         targetId: tab.targetId,
@@ -103,16 +121,20 @@ export function registerBrowserAgentDebugRoutes(
 
   app.post("/trace/stop", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) return;
+    if (!profileCtx) {
+      return;
+    }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
     const out = toStringOrEmpty(body.path) || "";
     try {
       const tab = await profileCtx.ensureTabAvailable(targetId);
       const pw = await requirePwAi(res, "trace stop");
-      if (!pw) return;
+      if (!pw) {
+        return;
+      }
       const id = crypto.randomUUID();
-      const dir = "/tmp/openclaw";
+      const dir = DEFAULT_TRACE_DIR;
       await fs.mkdir(dir, { recursive: true });
       const tracePath = out.trim() || path.join(dir, `browser-trace-${id}.zip`);
       await pw.traceStopViaPlaywright({
