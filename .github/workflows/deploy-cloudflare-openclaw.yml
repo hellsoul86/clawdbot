@@ -72,7 +72,7 @@ jobs:
 
           # Treat COPILOT_GITHUB_TOKEN as a valid AI provider credential so the worker doesn't
           # show "Missing Variables" when using GitHub Copilot as the model backend.
-          perl -0777 -i -pe 's/const hasOpenAIKey = !!env\\.OPENAI_API_KEY;\\n/const hasOpenAIKey = !!env.OPENAI_API_KEY;\\n  const hasCopilotToken = !!env.COPILOT_GITHUB_TOKEN;\\n/' src/index.ts
+          perl -0777 -i -pe 's/const hasOpenAIKey = !!env\.OPENAI_API_KEY;\n/const hasOpenAIKey = !!env.OPENAI_API_KEY;\n  const hasCopilotToken = !!env.COPILOT_GITHUB_TOKEN;\n/' src/index.ts
           perl -0777 -i -pe 's/!hasCloudflareGateway && !hasLegacyGateway && !hasAnthropicKey && !hasOpenAIKey/!hasCloudflareGateway && !hasLegacyGateway && !hasAnthropicKey && !hasOpenAIKey && !hasCopilotToken/' src/index.ts
           perl -0777 -i -pe 's/ANTHROPIC_API_KEY, OPENAI_API_KEY, or CLOUDFLARE_AI_GATEWAY_API_KEY/ANTHROPIC_API_KEY, OPENAI_API_KEY, COPILOT_GITHUB_TOKEN, or CLOUDFLARE_AI_GATEWAY_API_KEY/' src/index.ts
 
