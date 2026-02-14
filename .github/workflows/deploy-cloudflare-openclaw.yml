@@ -70,6 +70,12 @@ jobs:
 
           perl -0777 -i -pe 's/if \(env\.OPENAI_API_KEY\) envVars\.OPENAI_API_KEY = env\.OPENAI_API_KEY;\n/if (env.OPENAI_API_KEY) envVars.OPENAI_API_KEY = env.OPENAI_API_KEY;\n  if (env.COPILOT_GITHUB_TOKEN) envVars.COPILOT_GITHUB_TOKEN = env.COPILOT_GITHUB_TOKEN;\n/' src/gateway/env.ts
 
+          # Treat COPILOT_GITHUB_TOKEN as a valid AI provider credential so the worker doesn't
+          # show "Missing Variables" when using GitHub Copilot as the model backend.
+          perl -0777 -i -pe 's/const hasOpenAIKey = !!env\\.OPENAI_API_KEY;\\n/const hasOpenAIKey = !!env.OPENAI_API_KEY;\\n  const hasCopilotToken = !!env.COPILOT_GITHUB_TOKEN;\\n/' src/index.ts
+          perl -0777 -i -pe 's/!hasCloudflareGateway && !hasLegacyGateway && !hasAnthropicKey && !hasOpenAIKey/!hasCloudflareGateway && !hasLegacyGateway && !hasAnthropicKey && !hasOpenAIKey && !hasCopilotToken/' src/index.ts
+          perl -0777 -i -pe 's/ANTHROPIC_API_KEY, OPENAI_API_KEY, or CLOUDFLARE_AI_GATEWAY_API_KEY/ANTHROPIC_API_KEY, OPENAI_API_KEY, COPILOT_GITHUB_TOKEN, or CLOUDFLARE_AI_GATEWAY_API_KEY/' src/index.ts
+
           perl -0777 -i -pe 's@// Telegram configuration@// Copilot token-based default model (when no direct provider key is configured)\nif (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && !process.env.CLOUDFLARE_AI_GATEWAY_API_KEY && (process.env.COPILOT_GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GITHUB_TOKEN)) {\n    config.agents = config.agents || {};\n    config.agents.defaults = config.agents.defaults || {};\n    const existingModel = config.agents.defaults.model;\n    const existingPrimary = typeof existingModel === \"string\" ? existingModel : existingModel?.primary;\n    if (!existingPrimary || existingPrimary.startsWith(\"anthropic/\")) {\n        config.agents.defaults.model = { ...(typeof existingModel === \"object\" ? existingModel : {}), primary: \"github-copilot/gpt-4o\" };\n        console.log(\"Configured default model: github-copilot/gpt-4o\");\n    }\n}\n\n// Telegram configuration@' start-openclaw.sh
 
       - name: Setup Node.js
@@ -100,11 +106,13 @@ jobs:
           set -euo pipefail
           cd .deploy/moltworker
 
+          worker_name="${WORKER_NAME:-openclaw-sandbox}"
+
           put_secret() {
             local key="$1"
             local value="$2"
             if [ -n "$value" ]; then
-              printf '%s' "$value" | npx wrangler secret put "$key"
+              printf '%s' "$value" | npx wrangler secret put "$key" --name "$worker_name"
             fi
           }
 
